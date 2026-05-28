@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "paths": {
+            "/*": ["./*"]
+        },
+        "moduleResolution": "bundler",
+        "esModuleInterop": true,
+        "rootDir": "Slopathon",
+        "strict": true,
+        "resolveJsonModule": true,
+        "forceConsistentCasingInFileNames": true,
+        "strictNullChecks": true,
+        "noImplicitAny": true,
+        "skipLibCheck": true,
+        "types": ["node"]
+    },
+    "include": [
+        "Slopathon/**/*.ts",
+        "Slopathon/**/*.d.ts"
+    ]
+}

@@ -1,0 +1,67 @@
+.hud {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.65), 0 0 12px rgba(255, 255, 255, 0.08);
+}
+
+.title {
+    position: absolute;
+    left: 16px;
+    top: 12px;
+    font-size: clamp(22px, 3vw, 42px);
+    letter-spacing: 0.08em;
+    color: #fff5f1;
+    transform: rotate(-1deg);
+}
+
+.subtitle {
+    position: absolute;
+    left: 18px;
+    top: 58px;
+    font-size: 14px;
+    opacity: 0.9;
+    color: #ffcccb;
+}
+
+.stats {
+    position: absolute;
+    right: 16px;
+    top: 12px;
+    text-align: right;
+    font-size: 18px;
+    line-height: 1.35;
+    color: #fff8d9;
+}
+
+.bottom {
+    position: absolute;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    text-align: center;
+    font-size: 15px;
+    opacity: 0.92;
+    color: #ffe8ef;
+    max-width: min(900px, calc(100vw - 32px));
+}
+
+.toast {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: clamp(28px, 5vw, 72px);
+    text-align: center;
+    color: #fff7e6;
+    text-shadow: 0 4px 0 rgba(0, 0, 0, 0.7), 0 0 30px rgba(255, 52, 52, 0.3);
+    opacity: 0;
+    transition: opacity 180ms ease;
+    width: min(90vw, 900px);
+    pointer-events: none;
+    white-space: pre-line;
+}
+
+.toast.visible {
+    opacity: 1;
+}

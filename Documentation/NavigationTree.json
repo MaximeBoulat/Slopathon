@@ -15,6 +15,99 @@
                 "folderName": "ProjectSetup",
                 "description": "",
                 "url": "ProjectSetup.html"
+            },
+            {
+                "id": 12,
+                "type": "article",
+                "title": "Functional decomposition",
+                "lastModified": "2026-05-27",
+                "folderName": "FunctionalDecomposition",
+                "description": "",
+                "url": "FunctionalDecomposition.html"
+            },
+            {
+                "id": 13,
+                "type": "folder",
+                "title": "Features",
+                "lastModified": "2026-05-27",
+                "folderName": "Features",
+                "description": "",
+                "children": [
+                    {
+                        "id": 131,
+                        "type": "article",
+                        "title": "Title screen",
+                        "lastModified": "2026-05-27",
+                        "folderName": "TitleScreen",
+                        "description": "",
+                        "url": "TitleScreen.html"
+                    },
+                    {
+                        "id": 132,
+                        "type": "parentArticle",
+                        "title": "Playing",
+                        "lastModified": "2026-05-27",
+                        "folderName": "Playing",
+                        "description": "",
+                        "url": "Playing.html",
+                        "children": [
+                            {
+                                "id": 1321,
+                                "type": "article",
+                                "title": "Player movement",
+                                "lastModified": "2026-05-27",
+                                "folderName": "PlayerMovement",
+                                "description": "",
+                                "url": "PlayerMovement.html"
+                            },
+                            {
+                                "id": 1322,
+                                "type": "article",
+                                "title": "Halo collection",
+                                "lastModified": "2026-05-27",
+                                "folderName": "HaloCollection",
+                                "description": "",
+                                "url": "HaloCollection.html"
+                            },
+                            {
+                                "id": 1323,
+                                "type": "article",
+                                "title": "Debris & collision",
+                                "lastModified": "2026-05-27",
+                                "folderName": "DebrisCollision",
+                                "description": "",
+                                "url": "DebrisCollision.html"
+                            },
+                            {
+                                "id": 1324,
+                                "type": "article",
+                                "title": "Chaos system",
+                                "lastModified": "2026-05-27",
+                                "folderName": "ChaosSystem",
+                                "description": "",
+                                "url": "ChaosSystem.html"
+                            },
+                            {
+                                "id": 1325,
+                                "type": "article",
+                                "title": "Visual effects",
+                                "lastModified": "2026-05-27",
+                                "folderName": "VisualEffects",
+                                "description": "",
+                                "url": "VisualEffects.html"
+                            }
+                        ]
+                    },
+                    {
+                        "id": 133,
+                        "type": "article",
+                        "title": "Game over",
+                        "lastModified": "2026-05-27",
+                        "folderName": "GameOver",
+                        "description": "",
+                        "url": "GameOver.html"
+                    }
+                ]
             }
         ]
     }

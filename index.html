@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Red Orbit Astronaut</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg1: #05050a;
+      --bg2: #12090f;
+      --bg3: #2a0f12;
+      --ink: #f5f1e9;
+      --accent: #ff3b30;
+      --accent2: #ffd24a;
+      --good: #87ffb5;
+      --bad: #ff6f91;
+    }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top, rgba(255, 78, 78, 0.18), transparent 35%),
+        radial-gradient(circle at 20% 10%, rgba(255, 210, 74, 0.12), transparent 20%),
+        linear-gradient(180deg, var(--bg1), var(--bg2) 45%, var(--bg3));
+      font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+      color: var(--ink);
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      cursor: crosshair;
+    }
+
+    .hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      text-shadow: 0 2px 0 rgba(0, 0, 0, 0.65), 0 0 12px rgba(255, 255, 255, 0.08);
+    }
+
+    .title {
+      position: absolute;
+      left: 16px;
+      top: 12px;
+      font-size: clamp(22px, 3vw, 42px);
+      letter-spacing: 0.08em;
+      color: #fff5f1;
+      transform: rotate(-1deg);
+    }
+
+    .subtitle {
+      position: absolute;
+      left: 18px;
+      top: 58px;
+      font-size: 14px;
+      opacity: 0.9;
+      color: #ffcccb;
+    }
+
+    .stats {
+      position: absolute;
+      right: 16px;
+      top: 12px;
+      text-align: right;
+      font-size: 18px;
+      line-height: 1.35;
+      color: #fff8d9;
+    }
+
+    .bottom {
+      position: absolute;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      text-align: center;
+      font-size: 15px;
+      opacity: 0.92;
+      color: #ffe8ef;
+      max-width: min(900px, calc(100vw - 32px));
+    }
+
+    .toast {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: clamp(28px, 5vw, 72px);
+      text-align: center;
+      color: #fff7e6;
+      text-shadow: 0 4px 0 rgba(0, 0, 0, 0.7), 0 0 30px rgba(255, 52, 52, 0.3);
+      opacity: 0;
+      transition: opacity 180ms ease;
+      width: min(90vw, 900px);
+      pointer-events: none;
+      white-space: pre-line;
+    }
+
+    .toast.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div class="hud">
+    <div class="title">RED ORBIT ASTRONAUT</div>
+    <div class="subtitle">Angel wings, red fuel, bad decisions, zero dignity.</div>
+    <div class="stats" id="stats">Score: 0<br />Chaos: 0%<br />Hearts: 3</div>
+    <div class="toast" id="toast">PRESS SPACE
+OR CLICK TO BEGIN</div>
+    <div class="bottom">Move with WASD or arrow keys. Collect halos. Avoid space debris. The screen gets worse on purpose.</div>
+  </div>
+
+  <script>
+    (() => {
+      const canvas = document.getElementById('game');
+      const ctx = canvas.getContext('2d');
+      const stats = document.getElementById('stats');
+      const toast = document.getElementById('toast');
+
+      const keys = new Set();
+      const pointer = { x: 0, y: 0, down: false };
+      let w = 0;
+      let h = 0;
+      let dpr = 1;
+      let last = performance.now();
+      let started = false;
+      let gameOver = false;
+      let shake = 0;
+      let chaos = 0;
+      let score = 0;
+      let hearts = 3;
+      let time = 0;
+      let spawnTimer = 0;
+      let glitchTimer = 0;
+      let messageTimer = 0;
+      let message = '';
+
+      const player = {
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        radius: 24,
+        tilt: 0,
+        blink: 0,
+      };
+
+      const projectiles = [];
+      const halos = [];
+      const debris = [];
+      const particles = [];
+      const stars = [];
+      const messages = [
+        'ANGELIC SPEED',
+        'BEEP BEEP AHHH',
+        'THE CAN HAS WINGS',
+        'RED FUEL FRENZY',
+        'SPACE TAXI FROM HELL',
+        'BLESSED AND FRAGILE',
+        'THIS IS PROBABLY OSHA-ILLEGAL',
+      ];
+
+      function rand(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function resize() {
+        dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        w = window.innerWidth;
+        h = window.innerHeight;
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (!started) {
+          player.x = w * 0.5;
+          player.y = h * 0.6;
+        }
+      }
+
+      function spawnStarField() {
+        stars.length = 0;
+        for (let i = 0; i < 160; i += 1) {
+          stars.push({
+            x: Math.random() * w,
+            y: Math.random() * h,
+            z: rand(0.2, 1),
+            size: rand(0.8, 2.8),
+            hue: Math.random() < 0.15 ? 18 : 0,
+          });
+        }
+      }
+
+      function addParticles(x, y, count, colorA, colorB, power = 1) {
+        for (let i = 0; i < count; i += 1) {
+          const angle = rand(0, Math.PI * 2);
+          const speed = rand(50, 420) * power;
+          particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: rand(0.25, 0.9),
+            maxLife: 1,
+            size: rand(1.5, 5.5),
+            color: Math.random() < 0.5 ? colorA : colorB,
+            spin: rand(-8, 8),
+          });
+        }
+      }
+
+      function showMessage(text, duration = 1200) {
+        message = text;
+        toast.textContent = text;
+        toast.classList.add('visible');
+        messageTimer = duration;
+      }
+
+      function startGame() {
+        started = true;
+        gameOver = false;
+        score = 0;
+        hearts = 3;
+        chaos = 0;
+        shake = 0;
+        projectiles.length = 0;
+        halos.length = 0;
+        debris.length = 0;
+        particles.length = 0;
+        spawnTimer = 0;
+        glitchTimer = 0;
+        time = 0;
+        player.x = w * 0.45;
+        player.y = h * 0.6;
+        player.vx = 0;
+        player.vy = 0;
+        showMessage('GO GO GO', 900);
+      }
+
+      function endGame() {
+        gameOver = true;
+        started = false;
+        showMessage('DECAPITATED BY COSMIC CARGO\nPRESS SPACE OR CLICK TO RESTART', 999999);
+      }
+
+      function burst(x, y, amount, a, b, power) {
+        addParticles(x, y, amount, a, b, power);
+        shake = Math.min(28, shake + amount * 0.02);
+      }
+
+      function spawnHazard() {
+        const side = Math.floor(rand(0, 4));
+        const size = rand(18, 54);
+        const speed = rand(90, 270) + chaos * 110;
+        let x = 0;
+        let y = 0;
+        let vx = 0;
+        let vy = 0;
+
+        if (side === 0) {
+          x = rand(0, w);
+          y = -size - 10;
+          vx = rand(-0.35, 0.35) * speed;
+          vy = speed;
+        } else if (side === 1) {
+          x = w + size + 10;
+          y = rand(0, h);
+          vx = -speed;
+          vy = rand(-0.35, 0.35) * speed;
+        } else if (side === 2) {
+          x = rand(0, w);
+          y = h + size + 10;
+          vx = rand(-0.35, 0.35) * speed;
+          vy = -speed;
+        } else {
+          x = -size - 10;
+          y = rand(0, h);
+          vx = speed;
+          vy = rand(-0.35, 0.35) * speed;
+        }
+
+        debris.push({
+          x,
+          y,
+          vx,
+          vy,
+          size,
+          spin: rand(-5, 5),
+          angle: rand(0, Math.PI * 2),
+          wobble: rand(0, Math.PI * 2),
+          kind: Math.random() < 0.35 ? 'satellite' : 'rock',
+        });
+      }
+
+      function spawnHalo() {
+        halos.push({
+          x: rand(60, w - 60),
+          y: rand(60, h - 140),
+          size: rand(14, 22),
+          pulse: rand(0, Math.PI * 2),
+        });
+      }
+
+      function controlPlayer(dt) {
+        let ax = 0;
+        let ay = 0;
+        if (keys.has('ArrowLeft') || keys.has('KeyA')) ax -= 1;
+        if (keys.has('ArrowRight') || keys.has('KeyD')) ax += 1;
+        if (keys.has('ArrowUp') || keys.has('KeyW')) ay -= 1;
+        if (keys.has('ArrowDown') || keys.has('KeyS')) ay += 1;
+
+        if (!ax && !ay && pointer.down) {
+          const dx = pointer.x - player.x;
+          const dy = pointer.y - player.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          ax = dx / dist;
+          ay = dy / dist;
+        }
+
+        const targetSpeed = started ? 380 + chaos * 50 : 0;
+        const accel = 1240;
+        player.vx += ax * accel * dt;
+        player.vy += ay * accel * dt;
+
+        const drag = Math.pow(0.0006, dt);
+        player.vx *= drag;
+        player.vy *= drag;
+
+        const speed = Math.hypot(player.vx, player.vy);
+        if (speed > targetSpeed) {
+          const ratio = targetSpeed / speed;
+          player.vx *= ratio;
+          player.vy *= ratio;
+        }
+
+        player.x += player.vx * dt;
+        player.y += player.vy * dt;
+
+        player.x = clamp(player.x, 36, w - 36);
+        player.y = clamp(player.y, 48, h - 36);
+        player.tilt = clamp(player.vx * 0.0025, -0.5, 0.5);
+        player.blink -= dt;
+      }
+
+      function update(dt) {
+        time += dt;
+        chaos = clamp(score * 0.02 + time * 0.015, 0, 10);
+        if (shake > 0) shake = Math.max(0, shake - dt * 18);
+        if (glitchTimer > 0) glitchTimer -= dt;
+        if (messageTimer > 0) {
+          messageTimer -= dt * 1000;
+          if (messageTimer <= 0) toast.classList.remove('visible');
+        }
+
+        controlPlayer(dt);
+
+        if (started) {
+          spawnTimer -= dt;
+          if (spawnTimer <= 0) {
+            spawnHazard();
+            if (Math.random() < 0.55) spawnHazard();
+            spawnTimer = Math.max(0.12, 0.62 - chaos * 0.03);
+          }
+
+          if (Math.random() < 0.02 + chaos * 0.003) spawnHalo();
+          if (Math.random() < 0.01 + chaos * 0.002) {
+            projectiles.push({
+              x: player.x,
+              y: player.y - 28,
+              vx: rand(-70, 70),
+              vy: -rand(420, 620),
+              life: 1.6,
+            });
+          }
+        }
+
+        for (let i = projectiles.length - 1; i >= 0; i -= 1) {
+          const p = projectiles[i];
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.life -= dt;
+          if (p.y < -40 || p.life <= 0) projectiles.splice(i, 1);
+        }
+
+        for (let i = halos.length - 1; i >= 0; i -= 1) {
+          const halo = halos[i];
+          halo.pulse += dt * 6;
+          if (Math.hypot(halo.x - player.x, halo.y - player.y) < halo.size + player.radius) {
+            score += 10;
+            shake = Math.min(18, shake + 1.8);
+            burst(halo.x, halo.y, 30, '#fff2a1', '#87ffb5', 0.7);
+            halos.splice(i, 1);
+            if (Math.random() < 0.45) showMessage(messages[Math.floor(Math.random() * messages.length)], 800);
+          }
+        }
+
+        for (let i = debris.length - 1; i >= 0; i -= 1) {
+          const d = debris[i];
+          d.x += d.vx * dt;
+          d.y += d.vy * dt;
+          d.angle += d.spin * dt;
+          d.wobble += dt * 5;
+          if (Math.random() < 0.12) {
+            particles.push({
+              x: d.x,
+              y: d.y,
+              vx: rand(-20, 20),
+              vy: rand(-20, 20),
+              life: rand(0.18, 0.45),
+              maxLife: 1,
+              size: rand(1, 3),
+              color: '#6d7a8a',
+              spin: rand(-4, 4),
+            });
+          }
+
+          const pad = d.size + 90;
+          if (d.x < -pad || d.x > w + pad || d.y < -pad || d.y > h + pad) {
+            debris.splice(i, 1);
+            continue;
+          }
+
+          const dist = Math.hypot(d.x - player.x, d.y - player.y);
+          if (dist < d.size + player.radius - 4) {
+            debris.splice(i, 1);
+            hearts -= 1;
+            score = Math.max(0, score - 4);
+            burst(player.x, player.y, 50, '#ff6b6b', '#ffd24a', 1.1);
+            glitchTimer = 0.14;
+            showMessage('OW\nTHE CAN GOT BONKED', 700);
+            if (hearts <= 0) {
+              endGame();
+              break;
+            }
+          }
+        }
+
+        for (let i = particles.length - 1; i >= 0; i -= 1) {
+          const p = particles[i];
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vx *= Math.pow(0.12, dt);
+          p.vy *= Math.pow(0.12, dt);
+          p.life -= dt;
+          if (p.life <= 0) particles.splice(i, 1);
+        }
+
+        for (let i = stars.length - 1; i >= 0; i -= 1) {
+          const s = stars[i];
+          s.x -= (12 + chaos * 14) * s.z * dt;
+          if (s.x < -10) {
+            s.x = w + 10;
+            s.y = Math.random() * h;
+          }
+        }
+
+        if (Math.random() < 0.008 + chaos * 0.001) {
+          glitchTimer = 0.15;
+          shake = Math.min(18, shake + 1.5);
+        }
+
+        score += dt * (started ? 1.5 + chaos * 0.4 : 0);
+        stats.innerHTML = `Score: ${Math.floor(score)}<br />Chaos: ${Math.min(999, Math.floor(chaos * 10))}%<br />Hearts: ${hearts}`;
+      }
+
+      function drawBackground(t) {
+        const grad = ctx.createLinearGradient(0, 0, 0, h);
+        grad.addColorStop(0, '#07070d');
+        grad.addColorStop(0.45, '#180912');
+        grad.addColorStop(1, '#2e1116');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.save();
+        ctx.globalAlpha = 0.2;
+        ctx.fillStyle = '#ff6d6d';
+        for (let i = 0; i < 6; i += 1) {
+          const x = (w * 0.5) + Math.sin(t * 0.0006 + i) * 260;
+          const y = 90 + i * 68 + Math.cos(t * 0.0004 + i) * 20;
+          ctx.beginPath();
+          ctx.arc(x, y, 46 + i * 12, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        ctx.save();
+        ctx.globalAlpha = 0.26;
+        for (const s of stars) {
+          ctx.fillStyle = s.hue ? `rgba(255, 170, 120, ${0.25 + s.z * 0.5})` : `rgba(255,255,255,${0.25 + s.z * 0.6})`;
+          ctx.fillRect(s.x, s.y, s.size * s.z, s.size * s.z);
+        }
+        ctx.restore();
+      }
+
+      function drawHalo(halo) {
+        const pulse = 1 + Math.sin(halo.pulse) * 0.12;
+        ctx.save();
+        ctx.translate(halo.x, halo.y);
+        ctx.scale(pulse, pulse);
+        ctx.strokeStyle = '#fff6a2';
+        ctx.lineWidth = 5;
+        ctx.shadowColor = '#ffd44d';
+        ctx.shadowBlur = 18;
+        ctx.beginPath();
+        ctx.arc(0, 0, halo.size, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(0, 0, halo.size - 5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawDebris(d) {
+        ctx.save();
+        ctx.translate(d.x, d.y);
+        ctx.rotate(d.angle + Math.sin(d.wobble) * 0.12);
+        if (d.kind === 'satellite') {
+          ctx.fillStyle = '#8aa0c4';
+          ctx.strokeStyle = '#dce7ff';
+          ctx.lineWidth = 3;
+          ctx.fillRect(-d.size * 0.8, -d.size * 0.45, d.size * 1.6, d.size * 0.9);
+          ctx.strokeRect(-d.size * 0.8, -d.size * 0.45, d.size * 1.6, d.size * 0.9);
+          ctx.fillStyle = '#ffd24a';
+          ctx.fillRect(-d.size * 1.25, -4, d.size * 0.45, 8);
+          ctx.fillRect(d.size * 0.8, -4, d.size * 0.45, 8);
+          ctx.fillStyle = '#ff6b6b';
+          ctx.beginPath();
+          ctx.arc(0, 0, d.size * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = '#50424a';
+          ctx.beginPath();
+          ctx.moveTo(-d.size, -d.size * 0.4);
+          ctx.lineTo(-d.size * 0.4, -d.size);
+          ctx.lineTo(d.size * 0.8, -d.size * 0.7);
+          ctx.lineTo(d.size, d.size * 0.4);
+          ctx.lineTo(0, d.size);
+          ctx.lineTo(-d.size * 0.8, d.size * 0.6);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#7b6675';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawPlayer() {
+        ctx.save();
+        ctx.translate(player.x, player.y);
+        ctx.rotate(player.tilt);
+
+        const engineGlow = 0.5 + Math.sin(time * 16) * 0.2;
+
+        ctx.save();
+        ctx.translate(-18, 24);
+        ctx.fillStyle = `rgba(255, 83, 54, ${0.55 + engineGlow * 0.25})`;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-10, 28);
+        ctx.lineTo(10, 28);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(18, 24);
+        ctx.fillStyle = `rgba(255, 83, 54, ${0.55 + engineGlow * 0.25})`;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-10, 28);
+        ctx.lineTo(10, 28);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(0, -12);
+        ctx.fillStyle = '#f7f2e9';
+        ctx.strokeStyle = '#cccbca';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#97dfff';
+        ctx.beginPath();
+        ctx.ellipse(2, -2, 10, 8, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(-5, -7, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.fillStyle = '#ff4338';
+        ctx.beginPath();
+        ctx.roundRect(-20, 0, 40, 38, 12);
+        ctx.fill();
+        ctx.strokeStyle = '#ffcf7d';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffe7b0';
+        ctx.fillRect(-7, 12, 14, 16);
+        ctx.fillStyle = '#fff1dc';
+        ctx.fillRect(-5, 15, 10, 5);
+
+        ctx.save();
+        ctx.translate(-28, 2);
+        ctx.rotate(-0.4);
+        ctx.fillStyle = '#f5efe7';
+        ctx.strokeStyle = '#d8d2cb';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(-30, -20, -46, 6);
+        ctx.quadraticCurveTo(-24, 24, -2, 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(28, 2);
+        ctx.scale(-1, 1);
+        ctx.rotate(-0.4);
+        ctx.fillStyle = '#f5efe7';
+        ctx.strokeStyle = '#d8d2cb';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(-30, -20, -46, 6);
+        ctx.quadraticCurveTo(-24, 24, -2, 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.fillStyle = '#1d1c2b';
+        ctx.fillRect(-18, 36, 12, 12);
+        ctx.fillRect(6, 36, 12, 12);
+
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        for (const p of particles) {
+          const alpha = clamp(p.life / p.maxLife, 0, 1);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = p.color;
+          ctx.shadowColor = p.color;
+          ctx.shadowBlur = 12;
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.spin * p.life);
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size * (0.6 + alpha), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      function drawProjectiles() {
+        for (const p of projectiles) {
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(Math.atan2(p.vy, p.vx) + Math.PI / 2);
+          ctx.fillStyle = '#ffd24a';
+          ctx.shadowColor = '#ffed9a';
+          ctx.shadowBlur = 18;
+          ctx.beginPath();
+          ctx.moveTo(0, -11);
+          ctx.lineTo(6, 8);
+          ctx.lineTo(0, 14);
+          ctx.lineTo(-6, 8);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      function draw() {
+        const t = performance.now();
+        const xShake = shake ? rand(-shake, shake) : 0;
+        const yShake = shake ? rand(-shake, shake) : 0;
+        const glitchX = glitchTimer > 0 ? rand(-8, 8) : 0;
+        const glitchY = glitchTimer > 0 ? rand(-4, 4) : 0;
+
+        ctx.save();
+        ctx.translate(xShake + glitchX, yShake + glitchY);
+        drawBackground(t);
+
+        for (const halo of halos) drawHalo(halo);
+        for (const d of debris) drawDebris(d);
+        drawProjectiles();
+        drawParticles();
+        drawPlayer();
+
+        if (glitchTimer > 0) {
+          ctx.save();
+          ctx.globalAlpha = 0.1;
+          ctx.fillStyle = '#fff';
+          for (let i = 0; i < 18; i += 1) {
+            ctx.fillRect(rand(0, w), rand(0, h), rand(40, 300), rand(1, 4));
+          }
+          ctx.restore();
+        }
+
+        if (!started && !gameOver) {
+          ctx.save();
+          ctx.globalAlpha = 0.11;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, h * 0.72, w, 3);
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+
+      function loop(now) {
+        const dt = Math.min(0.033, (now - last) / 1000);
+        last = now;
+        update(dt);
+        draw();
+        requestAnimationFrame(loop);
+      }
+
+      window.addEventListener('resize', () => {
+        resize();
+        spawnStarField();
+      });
+
+      window.addEventListener('keydown', (event) => {
+        keys.add(event.code);
+        if ((event.code === 'Space' || event.code === 'Enter') && (!started || gameOver)) {
+          startGame();
+          event.preventDefault();
+          return;
+        }
+        if (event.code === 'Space' && started) {
+          burst(player.x, player.y + 18, 12, '#ff8b7b', '#fff1a6', 0.55);
+        }
+      });
+
+      window.addEventListener('keyup', (event) => keys.delete(event.code));
+      window.addEventListener('pointermove', (event) => {
+        pointer.x = event.clientX;
+        pointer.y = event.clientY;
+      });
+      window.addEventListener('pointerdown', (event) => {
+        pointer.down = true;
+        pointer.x = event.clientX;
+        pointer.y = event.clientY;
+        if (!started || gameOver) startGame();
+      });
+      window.addEventListener('pointerup', () => {
+        pointer.down = false;
+      });
+
+      if (!CanvasRenderingContext2D.prototype.roundRect) {
+        CanvasRenderingContext2D.prototype.roundRect = function (x, y, width, height, radius) {
+          const r = typeof radius === 'number' ? { tl: radius, tr: radius, br: radius, bl: radius } : radius;
+          this.beginPath();
+          this.moveTo(x + r.tl, y);
+          this.lineTo(x + width - r.tr, y);
+          this.quadraticCurveTo(x + width, y, x + width, y + r.tr);
+          this.lineTo(x + width, y + height - r.br);
+          this.quadraticCurveTo(x + width, y + height, x + width - r.br, y + height);
+          this.lineTo(x + r.bl, y + height);
+          this.quadraticCurveTo(x, y + height, x, y + height - r.bl);
+          this.lineTo(x, y + r.tl);
+          this.quadraticCurveTo(x, y, x + r.tl, y);
+          this.closePath();
+        };
+      }
+
+      resize();
+      spawnStarField();
+      showMessage('PRESS SPACE\nOR CLICK TO BEGIN', 999999);
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>

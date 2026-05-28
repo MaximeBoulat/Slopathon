@@ -7,6 +7,7 @@ import {
     StarEntity,
 } from '/Slopathon/src/Common/Models/Entities';
 import { GameService, PointerState } from './Services/GameService';
+import { SoundService } from './Services/SoundService';
 import { BackgroundView } from './Children/BackgroundView/BackgroundView';
 import { PlayerView } from './Children/PlayerView/PlayerView';
 import { EntityView } from './Children/EntityView/EntityView';
@@ -33,6 +34,7 @@ export class RootView {
     private last: number;
     private messageTimer: number;
     private gameService: GameService;
+    private soundService: SoundService;
     private backgroundView: BackgroundView;
     private playerView: PlayerView;
     private entityView: EntityView;
@@ -104,12 +106,14 @@ export class RootView {
         this.backgroundView = new BackgroundView();
         this.playerView = new PlayerView();
         this.entityView = new EntityView();
+        this.soundService = new SoundService();
         this.gameService = new GameService(
             this.player,
             this.debris,
             this.halos,
             this.particles,
-            this.stars
+            this.stars,
+            this.soundService
         );
 
         this.boundLoop = (now: DOMHighResTimeStamp) => { this.loop(now); };
@@ -129,6 +133,7 @@ export class RootView {
 
         window.addEventListener('keydown', (event) => {
             this.keys.add(event.code);
+            this.soundService.resume();
 
             if ((event.code === 'Space' || event.code === 'Enter') && this.state.phase !== 'playing') {
                 this.startGame();
@@ -149,6 +154,7 @@ export class RootView {
             this.pointer.down = true;
             this.pointer.x = event.clientX;
             this.pointer.y = event.clientY;
+            this.soundService.resume();
 
             if (this.state.phase !== 'playing') {
                 this.startGame();
@@ -185,11 +191,13 @@ export class RootView {
         this.state.time = 0;
         this.state.glitchTimer = 0;
         this.gameService.startGame(this.state.w, this.state.h);
+        this.soundService.startAmbient();
         this.showMessage('GO GO GO', 900);
     }
 
     private endGame(): void {
         this.state.phase = 'gameOver';
+        this.soundService.stopAmbient();
         this.showMessage('DECAPITATED BY COSMIC CARGO\nPRESS SPACE OR CLICK TO RESTART', 999999);
     }
 

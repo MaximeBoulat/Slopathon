@@ -5,7 +5,7 @@ import {
 } from '/Slopathon/src/Common/Models/Entities';
 
 const REDBULL_IMAGE = new Image();
-REDBULL_IMAGE.src = '/Redbull.png';
+REDBULL_IMAGE.src = `${import.meta.env.BASE_URL}Redbull.png`;
 
 function clamp(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value));

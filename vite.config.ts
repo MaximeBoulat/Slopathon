@@ -3,6 +3,7 @@ import checker from 'vite-plugin-checker';
 import { resolve } from 'path';
 
 export default defineConfig({
+    base: '/slopathon/',
     build: {
         outDir: 'dist',
         rollupOptions: {

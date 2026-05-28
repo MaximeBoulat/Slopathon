@@ -6,6 +6,7 @@ import {
     ParticleEntity,
     StarEntity,
 } from '/Slopathon/src/Common/Models/Entities';
+import { SoundService } from './SoundService';
 
 export interface PointerState {
     x: number;
@@ -39,7 +40,8 @@ export class GameService {
         private debris: DebrisEntity[],
         private halos: HaloEntity[],
         private particles: ParticleEntity[],
-        private stars: StarEntity[]
+        private stars: StarEntity[],
+        private sound: SoundService
     ) {}
 
     spawnStarField(w: number, h: number): void {
@@ -178,6 +180,7 @@ export class GameService {
                 state.shake = Math.min(18, state.shake + 1.8);
                 this.addParticles(halo.x, halo.y, 30, '#fff2a1', '#87ffb5', 0.7);
                 this.halos.splice(i, 1);
+                this.sound.playCollectHalo();
 
                 if (Math.random() < 0.45) {
                     onMessage(MESSAGES[Math.floor(Math.random() * MESSAGES.length)], 800);
@@ -225,6 +228,7 @@ export class GameService {
                     state.shake = Math.min(18, state.shake + 1.8);
                     this.addParticles(d.x, d.y, 30, '#ffd24a', '#97dfff', 0.7);
                     this.debris.splice(i, 1);
+                    this.sound.playCollectCan();
                     if (Math.random() < 0.45) {
                         onMessage(MESSAGES[Math.floor(Math.random() * MESSAGES.length)], 800);
                     }
@@ -244,8 +248,10 @@ export class GameService {
             this.addParticles(this.player.x, this.player.y, 50, '#ff6b6b', '#ffd24a', 1.1);
             state.glitchTimer = 0.14;
             state.shake = Math.min(28, state.shake + 1);
+            this.sound.playRockHit();
 
             if (state.hearts <= 0) {
+                this.sound.playGameOver();
                 onGameOver();
             } else {
                 onMessage('OW\nTHE CAN GOT BONKED', 700);

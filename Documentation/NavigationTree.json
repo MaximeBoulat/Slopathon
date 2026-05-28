@@ -1,0 +1,21 @@
+[
+    {
+        "id": 1,
+        "type": "folder",
+        "title": "Project documentation",
+        "lastModified": "2026-05-27",
+        "folderName": "Documentation",
+        "description": "",
+        "children": [
+            {
+                "id": 11,
+                "type": "article",
+                "title": "Project setup",
+                "lastModified": "2026-05-27",
+                "folderName": "ProjectSetup",
+                "description": "",
+                "url": "ProjectSetup.html"
+            }
+        ]
+    }
+]
